@@ -1,2 +1,4 @@
 requests
 beautifulsoup4
+sentence-transformers
+python -c "import sklearn; print('Scikit-learn:', sklearn.__version__)"sentence-transformers
