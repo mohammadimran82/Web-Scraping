@@ -1,4 +1,5 @@
 requests
 beautifulsoup4
 sentence-transformers
+chromadb
 python -c "import sklearn; print('Scikit-learn:', sklearn.__version__)"sentence-transformers
