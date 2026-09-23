@@ -4,20 +4,24 @@ import ollama
 from sentence_transformers import SentenceTransformer
 
 
-# ---------------------------------------------------------
-# 1. Settings
-# ---------------------------------------------------------
+# =========================================================
+# 1. SETTINGS
+# =========================================================
 
 VECTOR_DB_PATH = "data/chroma_db"
 
 COLLECTION_NAME = "web_scraper_rag"
 
-TOP_K = 3
+# Chroma retrieves this many candidates
+TOP_K = 10
+
+# After filtering, send this many chunks to Llama
+FINAL_CONTEXT_SIZE = 5
 
 
-# ---------------------------------------------------------
-# 2. Load embedding model
-# ---------------------------------------------------------
+# =========================================================
+# 2. LOAD EMBEDDING MODEL
+# =========================================================
 
 print("Loading embedding model...")
 
@@ -26,9 +30,9 @@ embedding_model = SentenceTransformer(
 )
 
 
-# ---------------------------------------------------------
-# 3. Connect to ChromaDB
-# ---------------------------------------------------------
+# =========================================================
+# 3. CONNECT TO CHROMADB
+# =========================================================
 
 print("Connecting to ChromaDB...")
 
@@ -37,35 +41,74 @@ chroma_client = chromadb.PersistentClient(
 )
 
 
-# ---------------------------------------------------------
-# 4. Get collection
-# ---------------------------------------------------------
+# =========================================================
+# 4. GET COLLECTION
+# =========================================================
 
 collection = chroma_client.get_collection(
     name=COLLECTION_NAME
 )
 
 
-# ---------------------------------------------------------
-# 5. Conversation memory
-# ---------------------------------------------------------
+print("RAG system ready.")
+
+
+# =========================================================
+# 5. CONVERSATION MEMORY
+# =========================================================
 
 conversation_history = []
 
 
-# ---------------------------------------------------------
-# 6. Chatbot loop
-# ---------------------------------------------------------
+# =========================================================
+# 6. SIMPLE EXACT-TERM BOOST
+# =========================================================
+
+def calculate_relevance(question, document):
+    """
+    Gives an additional score when important words from
+    the question appear directly inside the document.
+
+    This helps distinguish terms such as:
+
+        skuId
+        sku
+
+    """
+
+    question_words = question.lower().split()
+
+    document_lower = document.lower()
+
+    score = 0
+
+    for word in question_words:
+
+        # Remove simple punctuation
+        word = word.strip(
+            ".,?!:;()[]{}\"'"
+        )
+
+        if not word:
+            continue
+
+        if word in document_lower:
+            score += 1
+
+    return score
+
+
+# =========================================================
+# 7. CHATBOT LOOP
+# =========================================================
 
 while True:
 
-    question = input(
-        "\nYou: "
-    ).strip()
+    question = input("\nYou: ").strip()
 
 
     # -----------------------------------------------------
-    # Exit chatbot
+    # EXIT
     # -----------------------------------------------------
 
     if question.lower() == "exit":
@@ -76,7 +119,7 @@ while True:
 
 
     # -----------------------------------------------------
-    # Ignore empty questions
+    # IGNORE EMPTY QUESTIONS
     # -----------------------------------------------------
 
     if not question:
@@ -84,62 +127,86 @@ while True:
         continue
 
 
-    # -----------------------------------------------------
-# 7. Rewrite follow-up question
-# -----------------------------------------------------
+    # =====================================================
+    # 8. REWRITE FOLLOW-UP QUESTION
+    # =====================================================
 
-history_text = ""
+    history_text = ""
 
-for message in conversation_history:
+    for message in conversation_history:
 
-    history_text += f"""
+        history_text += f"""
 {message["role"].upper()}:
 {message["content"]}
 """
 
 
-rewrite_prompt = f"""
-You are helping a RAG system understand follow-up questions.
+    # If there is no previous conversation, don't waste
+    # an LLM call rewriting an already standalone question.
 
-Look at the conversation history and rewrite the
-CURRENT QUESTION into a standalone question.
+    if len(conversation_history) == 0:
 
-The rewritten question must contain all the important
-information needed to search the documentation.
+        standalone_question = question
+
+    else:
+
+        rewrite_prompt = f"""
+You rewrite questions for a documentation search system.
+
+Rewrite the CURRENT QUESTION into a standalone search
+question using the conversation history.
+
+If the question is already standalone, keep its important
+technical terms unchanged.
+
+IMPORTANT:
+Do not replace technical terms such as skuId, listingId,
+seller SKU ID, orderItemId, listing ID, or API names.
 
 Do not answer the question.
 
-CONVERSATION HISTORY:
+CONVERSATION:
 {history_text}
 
 CURRENT QUESTION:
 {question}
 
-STANDALONE QUESTION:
+STANDALONE SEARCH QUESTION:
 """
 
 
-rewrite_response = ollama.chat(
-    model="llama3.2:3b",
-    messages=[
-        {
-            "role": "user",
-            "content": rewrite_prompt
-        }
-    ]
-)
+        rewrite_response = ollama.chat(
+            model="llama3.2:3b",
+            messages=[
+                {
+                    "role": "user",
+                    "content": rewrite_prompt
+                }
+            ]
+        )
 
 
-standalone_question = rewrite_response["message"]["content"].strip()
+        standalone_question = (
+            rewrite_response["message"]["content"].strip()
+        )
 
 
-print("\nSearch question:")
-print(standalone_question)
+    print("\nSearch question:")
+    print(standalone_question)
 
 
-    # -----------------------------------------------------
-    # 8. Search ChromaDB
-    # -----------------------------------------------------
+    # =====================================================
+    # 9. CREATE QUESTION EMBEDDING
+    # =====================================================
+
+    question_embedding = embedding_model.encode(
+        standalone_question
+    ).tolist()
+
+
+    # =====================================================
+    # 10. SEARCH CHROMADB
+    # =====================================================
 
     results = collection.query(
         query_embeddings=[question_embedding],
@@ -147,35 +214,111 @@ print(standalone_question)
     )
 
 
-    # -----------------------------------------------------
-    # 9. Get retrieved documents
-    # -----------------------------------------------------
+    # =====================================================
+    # 11. GET RETRIEVED DOCUMENTS
+    # =====================================================
 
     documents = results["documents"][0]
 
     metadatas = results["metadatas"][0]
 
+    distances = results["distances"][0]
 
-    # -----------------------------------------------------
-    # 10. Build documentation context
-    # -----------------------------------------------------
 
-    context_parts = []
+    # =====================================================
+    # 12. RERANK RETRIEVED DOCUMENTS
+    # =====================================================
+
+    ranked_results = []
 
 
     for i in range(len(documents)):
 
+        exact_score = calculate_relevance(
+            standalone_question,
+            documents[i]
+        )
+
+        ranked_results.append(
+            {
+                "document": documents[i],
+                "metadata": metadatas[i],
+                "distance": distances[i],
+                "exact_score": exact_score
+            }
+        )
+
+
+    # First prioritize exact-term matches.
+    # Then use Chroma distance as the secondary signal.
+
+    ranked_results.sort(
+        key=lambda item: (
+            -item["exact_score"],
+            item["distance"]
+        )
+    )
+
+
+    # Keep only the strongest evidence.
+
+    final_results = ranked_results[
+        :FINAL_CONTEXT_SIZE
+    ]
+
+
+    # =====================================================
+    # 13. DISPLAY RETRIEVAL DEBUG INFORMATION
+    # =====================================================
+
+    print("\nRetrieved and reranked sources:")
+
+
+    for i, result in enumerate(final_results):
+
+        print("\n--------------------------------------")
+
+        print(
+            f"Rank: {i + 1}"
+        )
+
+        print(
+            f"Exact-term score: {result['exact_score']}"
+        )
+
+        print(
+            f"Distance: {result['distance']}"
+        )
+
+        print(
+            f"Title: {result['metadata']['title']}"
+        )
+
+        print(
+            f"URL: {result['metadata']['url']}"
+        )
+
+
+    # =====================================================
+    # 14. BUILD FINAL DOCUMENTATION CONTEXT
+    # =====================================================
+
+    context_parts = []
+
+
+    for i, result in enumerate(final_results):
+
         source_text = f"""
 SOURCE {i + 1}
 
-Title:
-{metadatas[i]["title"]}
+TITLE:
+{result["metadata"]["title"]}
 
 URL:
-{metadatas[i]["url"]}
+{result["metadata"]["url"]}
 
-Content:
-{documents[i]}
+DOCUMENTATION:
+{result["document"]}
 """
 
         context_parts.append(
@@ -188,59 +331,69 @@ Content:
     )
 
 
-    # -----------------------------------------------------
-    # 11. Build conversation history
-    # -----------------------------------------------------
-
-    history_text = ""
-
-
-    for message in conversation_history:
-
-        history_text += f"""
-{message["role"].upper()}:
-{message["content"]}
-
-"""
-
-
-    # -----------------------------------------------------
-    # 12. Create prompt
-    # -----------------------------------------------------
+    # =====================================================
+    # 15. FINAL ANSWER PROMPT
+    # =====================================================
 
     prompt = f"""
-You are a helpful documentation assistant.
+You are a documentation question-answering assistant.
 
-Answer the user's question using ONLY the
-documentation context provided below.
+Answer the user's question using ONLY the documentation
+sources provided below.
 
-You may use the conversation history to
-understand what the user is referring to.
+IMPORTANT RULES:
 
-Do not use outside knowledge.
+1. Find the exact technical term asked about.
 
-If the answer cannot be found in the
-documentation, say:
+2. If the question asks:
+   "What is X?"
+   look for a direct definition of X.
 
-"I could not find that information in the
-provided documentation."
+3. Prefer a definition where the exact term appears.
 
-Do not invent information.
+4. Do NOT confuse similar technical terms.
 
-CONVERSATION HISTORY:
-{history_text}
+For example:
 
-CURRENT USER QUESTION:
+skuId
+is different from
+sku
+
+listingId
+is different from
+orderItemId
+
+5. If the documentation contains a direct definition,
+use that definition.
+
+6. Do not combine definitions of different fields.
+
+7. Do not use outside knowledge.
+
+8. Do not invent information.
+
+9. Keep the answer short and direct.
+
+10. If the documentation truly does not contain the answer,
+say:
+
+"I could not find that information in the provided documentation."
+
+USER QUESTION:
 {question}
 
-DOCUMENTATION CONTEXT:
+DOCUMENTATION:
 {context}
+
+Now answer the USER QUESTION.
+
+ANSWER:
 """
 
 
-    # -----------------------------------------------------
-    # 13. Send prompt to Llama
-    # -----------------------------------------------------
+    # =====================================================
+    # 16. GENERATE ANSWER
+    # =====================================================
 
     print("\nGenerating answer...\n")
 
@@ -256,20 +409,20 @@ DOCUMENTATION CONTEXT:
     )
 
 
-    # -----------------------------------------------------
-    # 14. Get AI answer
-    # -----------------------------------------------------
+    # =====================================================
+    # 17. GET ANSWER
+    # =====================================================
 
-    answer = response["message"]["content"]
+    answer = response["message"]["content"].strip()
 
 
     print("AI:")
     print(answer)
 
 
-    # -----------------------------------------------------
-    # 15. Save conversation
-    # -----------------------------------------------------
+    # =====================================================
+    # 18. SAVE CONVERSATION
+    # =====================================================
 
     conversation_history.append(
         {
@@ -287,19 +440,19 @@ DOCUMENTATION CONTEXT:
     )
 
 
-    # -----------------------------------------------------
-    # 16. Display sources
-    # -----------------------------------------------------
+    # =====================================================
+    # 19. DISPLAY FINAL SOURCES
+    # =====================================================
 
-    print("\nSources:")
+    print("\nFinal Sources:")
 
 
-    for i, metadata in enumerate(metadatas):
+    for i, result in enumerate(final_results):
 
         print(
-            f"{i + 1}. {metadata['title']}"
+            f"{i + 1}. {result['metadata']['title']}"
         )
 
         print(
-            f"   {metadata['url']}"
+            f"   {result['metadata']['url']}"
         )

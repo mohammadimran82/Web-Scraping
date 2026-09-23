@@ -1,45 +1,197 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse, urldefrag
+from collections import deque
 import json
 import os
+import time
 
 
-# Maximum number of pages the crawler will scrape
-MAX_PAGES = 10
+# ============================================================
+# SETTINGS
+# ============================================================
+
+OUTPUT_FILE = "data/scraped_data.json"
+
+# None = crawl all allowed pages
+MAX_PAGES = None
+
+# Delay between requests
+REQUEST_DELAY = 0.2
+
+# Browser-like headers
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/153.0.0.0 Safari/537.36"
+    )
+}
 
 
-# ---------------------------------------------------------
-# 1. Normalize URL
-# ---------------------------------------------------------
+# ============================================================
+# URL NORMALIZATION
+# ============================================================
+
 def normalize_url(url):
-    # Remove #section fragments from URLs
-    url, fragment = urldefrag(url)
+    """
+    Clean and normalize a URL.
 
-    # Remove trailing /
-    return url.rstrip("/")
+    Removes:
+    - #fragments
+    - unnecessary trailing slash
+    """
 
-
-# ---------------------------------------------------------
-# 2. Check whether a URL should be crawled
-# ---------------------------------------------------------
-def should_crawl(url, start_domain, allowed_path):
+    url = urldefrag(url)[0]
 
     parsed = urlparse(url)
 
-    # Only allow HTTP and HTTPS
+    scheme = parsed.scheme.lower()
+    netloc = parsed.netloc.lower()
+
+    path = parsed.path
+
+    if not path:
+        path = "/"
+
+    # Remove trailing slash except for root
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/")
+
+    normalized = f"{scheme}://{netloc}{path}"
+
+    if parsed.query:
+        normalized += f"?{parsed.query}"
+
+    return normalized
+
+
+# ============================================================
+# FLIPKART URL CONVERSION
+# ============================================================
+
+def convert_flipkart_url(url, start_domain):
+    """
+    Flipkart documentation has some links that point to paths
+    outside /api-docs.
+
+    Example:
+
+        /FMSAPI.html
+
+    should actually become:
+
+        /api-docs/FMSAPI.html
+
+    This function fixes those links.
+
+    This is currently Flipkart-specific.
+    """
+
+    parsed = urlparse(url)
+
+    # Only modify Flipkart URLs
+    if parsed.netloc.lower() != start_domain.lower():
+        return url
+
+    path = parsed.path
+
+    # Already inside /api-docs
+    if path == "/api-docs" or path.startswith("/api-docs/"):
+        return url
+
+    flipkart_doc_paths = [
+        "/FMPlatOverview.html",
+        "/FMSAPI.html",
+        "/errors.html",
+        "/best_practices.html",
+        "/listing-api-docs/",
+        "/order-api-docs/",
+        "/reports-api-docs/",
+        "/changelog.html",
+        "/FAQ.html",
+        "/contact_tech.html",
+        "/contact.html",
+        "/api-tou.html",
+    ]
+
+    should_convert = False
+
+    for doc_path in flipkart_doc_paths:
+
+        if path == doc_path:
+            should_convert = True
+            break
+
+        if path.startswith(doc_path):
+            should_convert = True
+            break
+
+    if not should_convert:
+        return url
+
+    new_path = "/api-docs" + path
+
+    converted_url = (
+        f"{parsed.scheme}://"
+        f"{parsed.netloc}"
+        f"{new_path}"
+    )
+
+    if parsed.query:
+        converted_url += f"?{parsed.query}"
+
+    return converted_url
+
+
+# ============================================================
+# CHECK WHETHER URL SHOULD BE CRAWLED
+# ============================================================
+
+def should_crawl(url, start_domain):
+    """
+    Decide whether a URL is allowed to be crawled.
+    """
+
+    parsed = urlparse(url)
+
+    # --------------------------------------------------------
+    # Only HTTP / HTTPS
+    # --------------------------------------------------------
+
     if parsed.scheme not in ["http", "https"]:
         return False
 
-    # Only crawl the same domain
-    if parsed.netloc != start_domain:
+    # --------------------------------------------------------
+    # Same domain only
+    # --------------------------------------------------------
+
+    if parsed.netloc.lower() != start_domain.lower():
         return False
 
-    # Only crawl inside the documentation path
-    if not parsed.path.startswith(allowed_path):
+    path = parsed.path.lower()
+
+    # --------------------------------------------------------
+    # Only documentation pages
+    # --------------------------------------------------------
+
+    if not (
+        path == "/api-docs"
+        or path.startswith("/api-docs/")
+    ):
         return False
 
-    # File types that we don't want to scrape
+    # --------------------------------------------------------
+    # Ignore Sphinx source files
+    # --------------------------------------------------------
+
+    if path.startswith("/api-docs/_sources/"):
+        return False
+
+    # --------------------------------------------------------
+    # Ignore files/assets
+    # --------------------------------------------------------
+
     blocked_extensions = [
         ".pdf",
         ".png",
@@ -47,498 +199,716 @@ def should_crawl(url, start_domain, allowed_path):
         ".jpeg",
         ".gif",
         ".svg",
+        ".webp",
         ".zip",
         ".css",
         ".js",
         ".mp4",
-        ".mp3"
+        ".mp3",
+        ".woff",
+        ".woff2",
+        ".ttf",
+        ".ico",
     ]
 
-    path = parsed.path.lower()
-
     for extension in blocked_extensions:
+
         if path.endswith(extension):
             return False
 
     return True
 
 
-# ---------------------------------------------------------
-# 3. Scrape one webpage
-# ---------------------------------------------------------
+# ============================================================
+# SCRAPE ONE PAGE
+# ============================================================
+
 def scrape_page(url):
+    """
+    Download and extract useful documentation content
+    from one webpage.
+    """
+
+    print()
+    print("-" * 70)
+    print("Scraping:")
+    print(url)
+    print("-" * 70)
 
     try:
 
-        print()
-        print("Scraping:", url)
-
         response = requests.get(
             url,
-            timeout=20,
-            headers={
-                "User-Agent": "Mozilla/5.0"
-            }
+            headers=HEADERS,
+            timeout=30
         )
 
+        print("Status code:", response.status_code)
+
+        # Raise an error for 4xx / 5xx
         response.raise_for_status()
 
     except requests.RequestException as error:
 
-        print("Failed:", error)
+        print("Request failed:")
+        print(error)
 
         return None
 
+    # --------------------------------------------------------
+    # Parse HTML
+    # --------------------------------------------------------
 
-    # Convert HTML into BeautifulSoup object
-    soup = BeautifulSoup(response.text, "html.parser")
+    soup = BeautifulSoup(
+        response.text,
+        "html.parser"
+    )
 
-
-    # -----------------------------------------------------
+    # --------------------------------------------------------
     # Page title
-    # -----------------------------------------------------
-
-    title = ""
+    # --------------------------------------------------------
 
     if soup.title:
-        title = soup.title.get_text(" ", strip=True)
+        title = soup.title.get_text(
+            " ",
+            strip=True
+        )
+    else:
+        title = url
 
+    # --------------------------------------------------------
+    # Find main documentation content
+    # --------------------------------------------------------
 
-    # -----------------------------------------------------
-    # Page content
-    # -----------------------------------------------------
+    main_content = (
+        soup.find("main")
+        or soup.find("article")
+        or soup.find("div", class_="document")
+        or soup.find("body")
+    )
 
-    content = []
+    if main_content is None:
 
+        print("No main content found.")
 
-    # Find important HTML elements
-    elements = soup.find_all([
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "p",
-        "table",
-        "pre",
-        "code",
-        "ul",
-        "ol"
-    ])
+        return None
 
+    # --------------------------------------------------------
+    # Remove unwanted elements
+    # --------------------------------------------------------
 
-    for element in elements:
+    for element in main_content.find_all(
+        [
+            "script",
+            "style",
+            "noscript",
+            "nav",
+            "footer"
+        ]
+    ):
 
-        # ---------------------------------------------
-        # Headings
-        # ---------------------------------------------
+        element.decompose()
 
-        if element.name in ["h1", "h2", "h3", "h4"]:
+    # --------------------------------------------------------
+    # Extract useful content
+    # --------------------------------------------------------
 
-            text = element.get_text(" ", strip=True)
+    content_parts = []
 
-            if text:
+    # ========================================================
+    # HEADINGS
+    # ========================================================
 
-                content.append({
-                    "type": "heading",
-                    "level": int(element.name[1]),
-                    "text": text
-                })
+    for heading in main_content.find_all(
+        [
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6"
+        ]
+    ):
 
-
-        # ---------------------------------------------
-        # Paragraphs
-        # ---------------------------------------------
-
-        elif element.name == "p":
-
-            text = element.get_text(" ", strip=True)
-
-            if text:
-
-                content.append({
-                    "type": "paragraph",
-                    "text": text
-                })
-                
-        # ---------------------------------------------
-        # Code blocks
-        # ---------------------------------------------
-
-        elif element.name == "pre":
-
-            text = element.get_text(
-                "\n",
-                strip=True
-            )
-
-            if text:
-
-                content.append({
-                    "type": "code",
-                    "text": text
-                })
-
-
-        elif element.name == "code":
-
-            # Skip code elements that are already
-            # inside a <pre> block
-            if element.parent.name == "pre":
-                continue
-
-            text = element.get_text(
-                " ",
-                strip=True
-            )
-
-            if text:
-
-                content.append({
-                    "type": "code",
-                    "text": text
-                })
-                
-                
-                # ---------------------------------------------
-        # Lists
-        # ---------------------------------------------
-
-        elif element.name in ["ul", "ol"]:
-
-            items = []
-
-            for item in element.find_all("li", recursive=False):
-
-                text = item.get_text(
-                    " ",
-                    strip=True
-                )
-
-                if text:
-                    items.append(text)
-
-            if items:
-
-                content.append({
-                    "type": "list",
-                    "items": items
-                })
-
-
-        # ---------------------------------------------
-        # Tables
-        # ---------------------------------------------
-
-        elif element.name == "table":
-
-            rows = []
-
-
-            for row in element.find_all("tr"):
-
-                cells = row.find_all(["th", "td"])
-
-                row_data = []
-
-
-                for cell in cells:
-
-                    cell_text = cell.get_text(
-                        " ",
-                        strip=True
-                    )
-
-                    row_data.append(cell_text)
-
-
-                if row_data:
-
-                    rows.append(row_data)
-
-
-            if rows:
-
-                content.append({
-                    "type": "table",
-                    "rows": rows
-                })
-
-
-    # -----------------------------------------------------
-    # Extract links
-    # -----------------------------------------------------
-
-    links = []
-
-
-    for link in soup.find_all("a"):
-
-        href = link.get("href")
-
-        text = link.get_text(
+        text = heading.get_text(
             " ",
             strip=True
         )
 
+        if text:
 
-        # Ignore empty links
-        if not href:
-            continue
-
-
-        # Convert relative URL to absolute URL
-        absolute_url = urljoin(
-            url,
-            href
-        )
-
-
-        # Only keep HTTP/HTTPS links
-        if absolute_url.startswith(
-            ("http://", "https://")
-        ):
-
-            absolute_url = normalize_url(
-                absolute_url
+            content_parts.append(
+                f"\n{text}\n"
             )
 
+    # ========================================================
+    # PARAGRAPHS
+    # ========================================================
 
-            links.append({
-                "text": text,
-                "url": absolute_url
-            })
+    for paragraph in main_content.find_all("p"):
 
+        text = paragraph.get_text(
+            " ",
+            strip=True
+        )
 
-    # -----------------------------------------------------
-    # Return scraped page
-    # -----------------------------------------------------
+        if text:
+
+            content_parts.append(text)
+
+    # ========================================================
+    # CODE
+    # ========================================================
+
+    for code in main_content.find_all(
+        [
+            "pre",
+            "code"
+        ]
+    ):
+
+        text = code.get_text(
+            "\n",
+            strip=True
+        )
+
+        if text:
+
+            content_parts.append(
+                f"\nCODE:\n{text}\n"
+            )
+
+    # ========================================================
+    # LIST ITEMS
+    # ========================================================
+
+    for item in main_content.find_all("li"):
+
+        text = item.get_text(
+            " ",
+            strip=True
+        )
+
+        if text:
+
+            content_parts.append(
+                f"- {text}"
+            )
+
+    # ========================================================
+    # TABLES
+    # ========================================================
+
+    for table in main_content.find_all("table"):
+
+        rows = []
+
+        for row in table.find_all("tr"):
+
+            cells = row.find_all(
+                [
+                    "th",
+                    "td"
+                ]
+            )
+
+            row_data = []
+
+            for cell in cells:
+
+                cell_text = cell.get_text(
+                    " ",
+                    strip=True
+                )
+
+                row_data.append(cell_text)
+
+            if row_data:
+
+                rows.append(
+                    " | ".join(row_data)
+                )
+
+        if rows:
+
+            content_parts.append(
+                "\nTABLE:\n"
+                + "\n".join(rows)
+                + "\n"
+            )
+
+    # ========================================================
+    # FINAL TEXT
+    # ========================================================
+
+    content = "\n".join(content_parts)
+
+    # Clean excessive blank lines
+    lines = content.splitlines()
+
+    cleaned_lines = []
+
+    previous_blank = False
+
+    for line in lines:
+
+        line = line.strip()
+
+        if not line:
+
+            if not previous_blank:
+
+                cleaned_lines.append("")
+
+            previous_blank = True
+
+        else:
+
+            cleaned_lines.append(line)
+
+            previous_blank = False
+
+    content = "\n".join(
+        cleaned_lines
+    ).strip()
+
+    # --------------------------------------------------------
+    # Extract links
+    # --------------------------------------------------------
+
+    links = []
+
+    
+
+    # --------------------------------------------------------
+    # Remove duplicate links
+    # --------------------------------------------------------
+
+    unique_links = []
+
+    seen_links = set()
+
+    for link in links:
+
+        if link not in seen_links:
+
+            seen_links.add(link)
+
+            unique_links.append(link)
+
+    print(
+        "Content length:",
+        len(content)
+    )
+
+    print(
+        "Links found:",
+        len(unique_links)
+    )
 
     return {
-
-        "url": url,
-
         "title": title,
-
+        "url": url,
         "content": content,
-
-        "links": links
-
+        "links": unique_links
     }
 
 
-# =========================================================
-# MAIN PROGRAM
-# =========================================================
+# ============================================================
+# CRAWL WEBSITE
+# ============================================================
 
+def crawl_website(start_url):
 
-# ---------------------------------------------------------
-# 4. Ask user for URL
-# ---------------------------------------------------------
-
-start_url = input(
-    "Enter website URL: "
-).strip()
-
-
-# Normalize starting URL
-start_url = normalize_url(
-    start_url
-)
-
-
-# ---------------------------------------------------------
-# 5. Extract domain and allowed path
-# ---------------------------------------------------------
-
-parsed_start_url = urlparse(
-    start_url
-)
-
-
-domain = parsed_start_url.netloc
-
-
-# Example:
-#
-# https://seller.flipkart.com/api-docs/glossary.html
-#
-# allowed_path becomes:
-#
-# /api-docs/
-
-allowed_path = (
-    parsed_start_url.path
-    .rsplit("/", 1)[0]
-    + "/"
-)
-
-
-# ---------------------------------------------------------
-# 6. Create crawler storage
-# ---------------------------------------------------------
-
-visited_urls = set()
-
-pages = []
-
-urls_to_visit = [
-    start_url
-]
-
-
-# ---------------------------------------------------------
-# 7. Start crawling
-# ---------------------------------------------------------
-
-while (
-    urls_to_visit
-    and len(visited_urls) < MAX_PAGES
-):
-
-    # Take first URL from queue
-    current_url = urls_to_visit.pop(0)
-
-
-    # Skip if already visited
-    if current_url in visited_urls:
-        continue
-
-
-    # Mark URL as visited
-    visited_urls.add(
-        current_url
+    start_url = normalize_url(
+        start_url
     )
 
-
-    # Scrape page
-    page_data = scrape_page(
-        current_url
+    parsed_start = urlparse(
+        start_url
     )
 
+    start_domain = parsed_start.netloc
 
-    # If scraping failed
-    if page_data is None:
-        continue
+    # --------------------------------------------------------
+    # Validate starting URL
+    # --------------------------------------------------------
 
+    if not (
+        parsed_start.path == "/api-docs"
+        or parsed_start.path.startswith(
+            "/api-docs/"
+        )
+    ):
 
-    # Store page
-    pages.append(
-        page_data
-    )
+        print()
+        print("=" * 70)
+        print("ERROR")
+        print("=" * 70)
 
-
-    # -----------------------------------------------------
-    # Find links from current page
-    # -----------------------------------------------------
-
-    for link in page_data["links"]:
-
-        next_url = normalize_url(
-            link["url"]
+        print(
+            "This scraper currently expects a Flipkart"
         )
 
+        print(
+            "documentation URL inside /api-docs."
+        )
 
-        # Check crawler rules
-        if not should_crawl(
-            next_url,
-            domain,
-            allowed_path
+        print()
+        print(
+            "Example:"
+        )
+
+        print(
+            "https://seller.flipkart.com/api-docs"
+        )
+
+        print()
+
+        return
+
+    # --------------------------------------------------------
+    # Queue
+    # --------------------------------------------------------
+
+    queue = deque()
+
+    queue.append(
+        start_url
+    )
+
+    # --------------------------------------------------------
+    # Keep track of visited URLs
+    # --------------------------------------------------------
+
+    visited = set()
+
+    # --------------------------------------------------------
+    # Store scraped pages
+    # --------------------------------------------------------
+
+    pages = []
+
+    print()
+    print("=" * 70)
+    print("STARTING WEBSITE CRAWLER")
+    print("=" * 70)
+
+    print()
+    print("Starting URL:")
+    print(start_url)
+
+    print()
+    print("Domain:")
+    print(start_domain)
+
+    print()
+    print("Documentation path:")
+    print("/api-docs")
+
+    print()
+
+    # ========================================================
+    # BFS CRAWLER
+    # ========================================================
+
+    while queue:
+
+        # ----------------------------------------------------
+        # Stop if maximum pages reached
+        # ----------------------------------------------------
+
+        if (
+            MAX_PAGES is not None
+            and len(pages) >= MAX_PAGES
         ):
+
+            print()
+            print(
+                "Maximum page limit reached."
+            )
+
+            break
+
+        # ----------------------------------------------------
+        # Get next URL
+        # ----------------------------------------------------
+
+        current_url = queue.popleft()
+
+        # ----------------------------------------------------
+        # Skip already visited
+        # ----------------------------------------------------
+
+        if current_url in visited:
             continue
 
-
-        # Skip already visited URLs
-        if next_url in visited_urls:
-            continue
-
-
-        # Skip URLs already waiting in queue
-        if next_url in urls_to_visit:
-            continue
-
-
-        # Add URL to queue
-        urls_to_visit.append(
-            next_url
+        visited.add(
+            current_url
         )
 
+        # ----------------------------------------------------
+        # Convert Flipkart documentation links
+        # ----------------------------------------------------
 
-# ---------------------------------------------------------
-# 8. Prepare final JSON
-# ---------------------------------------------------------
+        current_url = convert_flipkart_url(
+            current_url,
+            start_domain
+        )
 
-output = {
+        current_url = normalize_url(
+            current_url
+        )
 
-    "start_url": start_url,
+        # ----------------------------------------------------
+        # Check whether URL is allowed
+        # ----------------------------------------------------
 
-    "domain": domain,
+        if not should_crawl(
+            current_url,
+            start_domain
+        ):
 
-    "allowed_path": allowed_path,
+            continue
 
-    "pages_scraped": len(pages),
+        # ----------------------------------------------------
+        # Scrape page
+        # ----------------------------------------------------
 
-    "pages": pages
+        page = scrape_page(
+            current_url
+        )
 
-}
+        # ----------------------------------------------------
+        # If page failed, continue
+        # ----------------------------------------------------
 
+        if page is None:
 
-# ---------------------------------------------------------
-# 9. Create data folder
-# ---------------------------------------------------------
+            continue
 
-os.makedirs(
-    "data",
-    exist_ok=True
-)
+        # ----------------------------------------------------
+        # Make sure final URL is still valid
+        # ----------------------------------------------------
 
+        final_url = normalize_url(
+            page["url"]
+        )
 
-# ---------------------------------------------------------
-# 10. Save JSON
-# ---------------------------------------------------------
+        final_url = convert_flipkart_url(
+            final_url,
+            start_domain
+        )
 
-output_file = (
-    "data/scraped_data.json"
-)
+        if not should_crawl(
+            final_url,
+            start_domain
+        ):
 
+            print(
+                "Skipping final URL:"
+            )
 
-with open(
-    output_file,
-    "w",
-    encoding="utf-8"
-) as file:
+            print(final_url)
 
-    json.dump(
-        output,
-        file,
-        indent=4,
-        ensure_ascii=False
+            continue
+
+        # ----------------------------------------------------
+        # Save page
+        # ----------------------------------------------------
+
+        pages.append(
+            page
+        )
+
+        print()
+        print(
+            "Pages scraped:",
+            len(pages)
+        )
+
+        # ----------------------------------------------------
+        # Add links to queue
+        # ----------------------------------------------------
+
+        for link in page["links"]:
+
+            link = convert_flipkart_url(
+                link,
+                start_domain
+            )
+
+            link = normalize_url(
+                link
+            )
+
+            if should_crawl(
+                link,
+                start_domain
+            ):
+
+                if link not in visited:
+
+                    if link not in queue:
+
+                        queue.append(
+                            link
+                        )
+
+        # ----------------------------------------------------
+        # Delay between requests
+        # ----------------------------------------------------
+
+        time.sleep(
+            REQUEST_DELAY
+        )
+
+    # ========================================================
+    # SAVE DATA
+    # ========================================================
+
+    print()
+    print("=" * 70)
+    print("SAVING SCRAPED DATA")
+    print("=" * 70)
+
+    os.makedirs(
+        "data",
+        exist_ok=True
+    )
+
+    data = {
+        "start_url": start_url,
+        "domain": start_domain,
+        "pages_scraped": len(pages),
+        "pages": pages
+    }
+
+    with open(
+        OUTPUT_FILE,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        json.dump(
+            data,
+            file,
+            indent=2,
+            ensure_ascii=False
+        )
+
+    # ========================================================
+    # COMPLETION MESSAGE
+    # ========================================================
+
+    print()
+    print("=" * 70)
+    print("SCRAPING COMPLETED")
+    print("=" * 70)
+
+    print()
+    print(
+        "Starting URL:",
+        start_url
+    )
+
+    print(
+        "Domain:",
+        start_domain
+    )
+
+    print(
+        "Pages scraped:",
+        len(pages)
+    )
+
+    print()
+    print(
+        "Output file:"
+    )
+
+    print(
+        OUTPUT_FILE
+    )
+
+    print()
+    print(
+        "Crawler finished successfully."
     )
 
 
-# ---------------------------------------------------------
-# 11. Finished
-# ---------------------------------------------------------
+# ============================================================
+# MAIN
+# ============================================================
 
-print()
+if __name__ == "__main__":
 
-print(
-    "======================================"
-)
+    import sys
 
-print(
-    "CRAWLING COMPLETED"
-)
+    # --------------------------------------------------------
+    # If URL is passed from another Python script
+    #
+    # Example:
+    #
+    # python scraper.py https://seller.flipkart.com/api-docs
+    # --------------------------------------------------------
 
-print(
-    "======================================"
-)
+    if len(sys.argv) > 1:
 
-print(
-    "Pages scraped:",
-    len(pages)
-)
+        start_url = sys.argv[1].strip()
 
-print(
-    "JSON saved to:",
-    output_file
-)
+    # --------------------------------------------------------
+    # Otherwise ask the user
+    #
+    # Example:
+    #
+    # python scraper.py
+    # --------------------------------------------------------
+
+    else:
+
+        start_url = input(
+            "Enter website URL: "
+        ).strip()
+
+    # --------------------------------------------------------
+    # Validate empty URL
+    # --------------------------------------------------------
+
+    if not start_url:
+
+        print()
+        print(
+            "ERROR: Website URL cannot be empty."
+        )
+
+        sys.exit(1)
+
+    # --------------------------------------------------------
+    # Show starting information
+    # --------------------------------------------------------
+
+    print()
+    print(
+        f"Starting URL: {start_url}"
+    )
+
+    parsed = urlparse(
+        start_url
+    )
+
+    print(
+        f"Domain: {parsed.netloc}"
+    )
+
+    print(
+        "Documentation path: /api-docs"
+    )
+
+    # --------------------------------------------------------
+    # Start crawler
+    # --------------------------------------------------------
+
+    crawl_website(
+        start_url
+    )

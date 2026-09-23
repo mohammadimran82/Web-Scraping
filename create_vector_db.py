@@ -35,16 +35,33 @@ client = chromadb.PersistentClient(
 
 
 # ---------------------------------------------------------
-# 4. Create or open collection
+# 4. Delete old collection
 # ---------------------------------------------------------
 
-collection = client.get_or_create_collection(
+try:
+
+    client.delete_collection(
+        name="web_scraper_rag"
+    )
+
+    print("Old vector collection deleted.")
+
+except Exception:
+
+    print("No old collection found.")
+
+
+# ---------------------------------------------------------
+# 5. Create a fresh collection
+# ---------------------------------------------------------
+
+collection = client.create_collection(
     name="web_scraper_rag"
 )
 
 
 # ---------------------------------------------------------
-# 5. Prepare data
+# 6. Prepare data
 # ---------------------------------------------------------
 
 ids = []
@@ -73,7 +90,7 @@ for chunk in embedded_chunks:
 
 
 # ---------------------------------------------------------
-# 6. Add data to ChromaDB
+# 7. Add data to ChromaDB
 # ---------------------------------------------------------
 
 collection.upsert(
@@ -85,7 +102,7 @@ collection.upsert(
 
 
 # ---------------------------------------------------------
-# 7. Check database
+# 8. Check database
 # ---------------------------------------------------------
 
 total_chunks = collection.count()
@@ -95,6 +112,11 @@ print()
 print("======================================")
 print("VECTOR DATABASE CREATED")
 print("======================================")
+
+print(
+    "Chunks in embeddings.json:",
+    len(embedded_chunks)
+)
 
 print(
     "Chunks stored:",

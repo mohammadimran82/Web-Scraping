@@ -11,7 +11,7 @@ VECTOR_DB_PATH = "data/chroma_db"
 
 COLLECTION_NAME = "web_scraper_rag"
 
-TOP_K = 3
+TOP_K = 10
 
 
 # ---------------------------------------------------------
