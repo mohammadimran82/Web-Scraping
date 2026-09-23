@@ -3,7 +3,7 @@ import os
 
 
 # ============================================================
-# FILE PATHS
+# SETTINGS
 # ============================================================
 
 INPUT_FILE = "data/scraped_data.json"
@@ -14,160 +14,145 @@ OUTPUT_FILE = "data/documents.json"
 # LOAD SCRAPED DATA
 # ============================================================
 
+print()
+print("=" * 60)
+print("LOADING SCRAPED DATA")
+print("=" * 60)
+
 with open(
     INPUT_FILE,
     "r",
     encoding="utf-8"
-) as f:
+) as file:
 
-    scraped_data = json.load(f)
+    data = json.load(file)
 
 
 # ============================================================
-# PREPARE DOCUMENTS
+# GET PAGES
+# ============================================================
+
+pages = data.get(
+    "pages",
+    []
+)
+
+print()
+print(
+    "Pages found:",
+    len(pages)
+)
+
+
+# ============================================================
+# CREATE DOCUMENTS
 # ============================================================
 
 documents = []
 
+for index, page in enumerate(pages):
 
-for page in scraped_data["pages"]:
+    print()
+    print(
+        f"Processing page {index + 1}/{len(pages)}"
+    )
+
+    # --------------------------------------------------------
+    # Make sure page itself is a dictionary
+    # --------------------------------------------------------
+
+    if not isinstance(page, dict):
+
+        print(
+            "Skipping invalid page:"
+        )
+
+        print(
+            page
+        )
+
+        continue
+
+    # --------------------------------------------------------
+    # Get title
+    # --------------------------------------------------------
 
     title = page.get(
         "title",
         ""
     )
 
+    # --------------------------------------------------------
+    # Get URL
+    # --------------------------------------------------------
+
     url = page.get(
         "url",
         ""
     )
 
-    content_items = page.get(
+    # --------------------------------------------------------
+    # Get content
+    # --------------------------------------------------------
+
+    content = page.get(
         "content",
-        []
+        ""
     )
 
-    text_parts = []
+    # --------------------------------------------------------
+    # Make sure content is a string
+    # --------------------------------------------------------
 
+    if isinstance(content, list):
 
-    # ========================================================
-    # PROCESS EACH CONTENT ITEM
-    # ========================================================
-
-    for item in content_items:
-
-        item_type = item.get(
-            "type",
-            ""
+        content = "\n".join(
+            str(item)
+            for item in content
         )
 
-        item_text = item.get(
-            "text",
-            ""
+    elif not isinstance(content, str):
+
+        content = str(content)
+
+    # --------------------------------------------------------
+    # Clean content
+    # --------------------------------------------------------
+
+    content = content.strip()
+
+    # --------------------------------------------------------
+    # Skip empty pages
+    # --------------------------------------------------------
+
+    if not content:
+
+        print(
+            "Skipping empty page."
         )
 
+        continue
 
-        # ----------------------------------------------------
-        # HEADING
-        # ----------------------------------------------------
+    # --------------------------------------------------------
+    # Create document
+    # --------------------------------------------------------
 
-        if item_type == "heading":
+    document = {
+        "text": content,
 
-            if item_text:
-                text_parts.append(
-                    f"\n{item_text}\n"
-                )
+        "metadata": {
+            "title": str(title),
+            "url": str(url)
+        }
+    }
 
-
-        # ----------------------------------------------------
-        # PARAGRAPH
-        # ----------------------------------------------------
-
-        elif item_type == "paragraph":
-
-            if item_text:
-                text_parts.append(
-                    item_text
-                )
-
-
-        # ----------------------------------------------------
-        # CODE
-        # ----------------------------------------------------
-
-        elif item_type == "code":
-
-            if item_text:
-                text_parts.append(
-                    f"\nCODE:\n{item_text}\n"
-                )
-
-
-        # ----------------------------------------------------
-        # LIST
-        # ----------------------------------------------------
-
-        elif item_type == "list":
-
-            if item_text:
-                text_parts.append(
-                    f"- {item_text}"
-                )
-
-
-        # ----------------------------------------------------
-        # TABLE
-        # ----------------------------------------------------
-
-        elif item_type == "table":
-
-            if item_text:
-                text_parts.append(
-                    f"\nTABLE:\n{item_text}\n"
-                )
-
-
-        # ----------------------------------------------------
-        # UNKNOWN TYPE
-        # ----------------------------------------------------
-
-        else:
-
-            if item_text:
-                text_parts.append(
-                    item_text
-                )
-
-
-    # ========================================================
-    # COMBINE PAGE CONTENT
-    # ========================================================
-
-    page_text = "\n".join(
-        text_parts
-    ).strip()
-
-
-    # ========================================================
-    # SAVE DOCUMENT
-    # ========================================================
-
-    if page_text:
-
-        documents.append(
-            {
-                "text": page_text,
-
-                "metadata": {
-                    "title": title,
-                    "url": url
-                }
-            }
-        )
+    documents.append(
+        document
+    )
 
 
 # ============================================================
-# CREATE DATA DIRECTORY
+# SAVE DOCUMENTS
 # ============================================================
 
 os.makedirs(
@@ -175,49 +160,53 @@ os.makedirs(
     exist_ok=True
 )
 
-
-# ============================================================
-# SAVE DOCUMENTS
-# ============================================================
-
 with open(
     OUTPUT_FILE,
     "w",
     encoding="utf-8"
-) as f:
+) as file:
 
     json.dump(
         documents,
-        f,
+        file,
         indent=2,
         ensure_ascii=False
     )
 
 
 # ============================================================
-# OUTPUT
+# SUMMARY
 # ============================================================
 
+print()
+print("=" * 60)
+print("DOCUMENT PREPARATION COMPLETED")
+print("=" * 60)
+
+print()
+
 print(
-    "======================================"
+    "Pages found:",
+    len(pages)
 )
 
 print(
-    "DOCUMENT PREPARATION COMPLETED"
+    "Documents created:",
+    len(documents)
+)
+
+print()
+
+print(
+    "Output file:"
 )
 
 print(
-    "======================================"
+    OUTPUT_FILE
 )
 
-print(
-    f"Pages scraped: {len(scraped_data['pages'])}"
-)
+print()
 
 print(
-    f"Documents created: {len(documents)}"
-)
-
-print(
-    f"JSON saved to: {OUTPUT_FILE}"
+    "prepare_documents.py completed successfully."
 )

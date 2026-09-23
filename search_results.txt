@@ -1,0 +1,1243 @@
+HYBRID SEARCH RESULTS
+============================================================
+
+
+------------------------------------------------------------
+Result 1
+------------------------------------------------------------
+Final score: 617
+Lexical score: 60
+Semantic score: 17
+Semantic distance: 1.6649346351623535
+
+Title: Glossary — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/glossary.html
+
+Content:
+
+
+orderItemId
+
+CODE:
+orderDate
+
+CODE:
+dispatchByDate
+
+CODE:
+orderItemId
+
+CODE:
+states
+
+CODE:
+orderItemId
+
+CODE:
+approved
+
+CODE:
+packed
+
+CODE:
+ready_to_dispatch
+
+CODE:
+cancelled
+
+CODE:
+sku
+
+CODE:
+orderItemId
+
+CODE:
+hasMore
+
+CODE:
+pageSize
+
+CODE:
+url
+
+CODE:
+nextPageURL
+
+CODE:
+previousPageURL
+
+CODE:
+FSN
+
+CODE:
+labelRequest
+
+CODE:
+serialNumbers
+
+CODE:
+dispatch
+
+TABLE:
+API Datatype (Attribute/Variable) | Description
+listingId | Flipkart internal identifier for a list corresponding to a skuId
+skuId | The seller SKU ID for a listingId
+attributeValues | Dynamic attributes such as selling price, stock count, etc.
+listings | The complete product information that a buyer views before placing an order
+mrp | The maximum retail price of the product
+selling_price | The price at which seller wants to sell the product. The value maybe different, but cannot be greater than the mrp
+stock_count | The quantity of the product on sale (cannot exceed 25)
+local_shipping_charge | The cost that the seller charges
+
+
+------------------------------------------------------------
+Result 2
+------------------------------------------------------------
+Final score: 600
+Lexical score: 60
+Semantic score: 0
+Semantic distance: 999
+
+Title: Glossary — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/glossary.html
+
+Content:
+
+Glossary Â¶
+
+Listing Management Â¶
+
+Order Management Â¶
+
+CODE:
+listingId
+
+CODE:
+skuId
+
+CODE:
+skuId
+
+CODE:
+listingId
+
+CODE:
+attributeValues
+
+CODE:
+listings
+
+CODE:
+mrp
+
+CODE:
+selling_price
+
+CODE:
+mrp
+
+CODE:
+stock_count
+
+CODE:
+local_shipping_charge
+
+CODE:
+zonal_shipping_charge
+
+CODE:
+national_shipping_charge
+
+CODE:
+listing_status
+
+CODE:
+ACTIVE
+
+CODE:
+INACTIVE
+
+CODE:
+procurement_sla
+
+CODE:
+procurement_type
+
+CODE:
+REGULAR
+
+CODE:
+EXPRESS
+
+CODE:
+MADE_TO_ORDER
+
+CODE:
+DOMESTIC
+
+CODE:
+INTERNATIONAL
+
+CODE:
+actual_stock_count
+
+CODE:
+stock_count
+
+CODE:
+status
+
+CODE:
+success
+
+CODE:
+failure
+
+CODE:
+response
+
+CODE:
+listingError
+
+CODE:
+status
+
+CODE:
+failure
+
+CODE:
+errors
+
+CODE:
+errorCode
+
+CODE:
+errorCode
+
+CODE:
+message
+
+CODE:
+selling_region_restriction
+
+CODE:
+orderID
+
+CODE:
+orderItemId
+
+CODE:
+subItem
+
+CODE:
+orderItemId
+
+CODE:
+orderDate
+
+CODE:
+dispatchByDate
+
+CODE:
+orderItemId
+
+CODE:
+states
+
+CODE:
+orderItemId
+
+CODE:
+approved
+
+CODE:
+packed
+
+CODE:
+ready_to_dispatch
+
+CODE:
+cancelled
+
+CODE:
+sku
+
+CODE:
+orderI
+
+
+------------------------------------------------------------
+Result 3
+------------------------------------------------------------
+Final score: 30
+Lexical score: 0
+Semantic score: 30
+Semantic distance: 1.5404694080352783
+
+Title: Listing Management API Reference For Flipkart Marketplace — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/listing-api-docs/LMAPIRef.html
+
+Content:
+
+rence | Description
+sku_ids | Array | Mandatory | Array of SKU IDs to fetch listing details for. Maximum: 10
+
+TABLE:
+Header | Meaning
+Content-Type | application/json; charset=utf-8
+
+TABLE:
+Status | Interpretation
+200 | Success.
+400 | Bad Request
+401 | Client unauthorized
+500 | Internal Server
+Error
+
+TABLE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89 | { "available" : { "sku" : { "listing_id" : "<flipkart-system-identifier>" , "product_id" : "<flipkart-product-identifier>" , "product_title" : "<product_title>" , "product_url" : "<product_url>" , "price" : { "mrp" : 0 , "flipkart_selling_price" : 0 , "currency" : "INR" }, "tax" : { "hsn" : "<hsn-code>" , "tax_code" : "<tax-code>" }, "listing_status" : "ACTIVE|INACTIVE" , "shipping_fees" : { "local" : 0 , "zonal" : 0 , "national
+
+
+------------------------------------------------------------
+Result 4
+------------------------------------------------------------
+Final score: 29
+Lexical score: 0
+Semantic score: 29
+Semantic distance: 1.5499913692474365
+
+Title: Listing Management API Reference For Flipkart Marketplace — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/listing-api-docs/LMAPIRef.html
+
+Content:
+
+ter_details"
+:
+[
+"<address_of_importer>"
+],
+"packer_details"
+:
+[
+"<address_of_packer>"
+],
+"countries_of_origin"
+:
+[
+"<iso_alpha2_code_of_country_of_origin>"
+]
+},
+"dating_label"
+:
+{
+"mfg_date"
+:
+"<Manufacturing date of the product in linux EPOCH (Seconds)>"
+,
+"shelf_life"
+:
+"<Shelf life of the product in Seconds>"
+}
+}
+}
+
+CODE:
+status
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+
+CODE:
+{
+"sku"
+:
+{
+"status"
+:
+"success|failure|warning"
+,
+"errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+}
+],
+"attribute_errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+,
+"attribute"
+:
+"<attribute>"
+,
+"path"
+:
+"<path-to-attribute>"
+}
+]
+}
+}
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+CODE:
+{
+"errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+,
+"path"
+:
+"<path-to-failed-json-node>"
+}
+]
+}
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+CODE:
+{
+"errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"co
+
+
+------------------------------------------------------------
+Result 5
+------------------------------------------------------------
+Final score: 28
+Lexical score: 0
+Semantic score: 28
+Semantic distance: 1.5776207447052002
+
+Title: Listing Management API Reference For Flipkart Marketplace — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/listing-api-docs/LMAPIRef.html
+
+Content:
+
+ors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+,
+"path"
+:
+"<path-to-failed-json-node>"
+}
+]
+}
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+CODE:
+{
+"errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+}
+]
+}
+
+CODE:
+{sku-ids}
+
+CODE:
+unavailable
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+CODE:
+{
+"errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+,
+"path"
+:
+"<path-to-failed-json-node>"
+}
+]
+}
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+CODE:
+{
+"errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+}
+]
+}
+
+CODE:
+unavailable
+
+CODE:
+invalid
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+
+CODE:
+{
+"sku_ids"
+:
+[
+"<sku1>"
+,
+"<sku2>"
+,
+"<sku3>"
+]
+}
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+8
+
+
+------------------------------------------------------------
+Result 6
+------------------------------------------------------------
+Final score: 27
+Lexical score: 0
+Semantic score: 27
+Semantic distance: 1.5785868167877197
+
+Title: Listing Management API Reference For Flipkart Marketplace — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/listing-api-docs/LMAPIRef.html
+
+Content:
+
+ibute.
+attribute_errors[].severity | Enumeration | Mandatory | The severity of the error. Warnings may require no further
+action.
+attribute_errors[].code | Integer | Mandatory | The error code.
+attribute_errors[].description | String | Mandatory | The error description.
+attribute_errors[].path | String | Mandatory | The JSON path to the attribute.
+
+TABLE:
+Parameter | Type | Occurrence | Description
+sku-ids | String | Mandatory | Comma-separated list of SKU Ids. Maximum per call: 10.
+
+TABLE:
+Header | Meaning
+Content-Type | application/json; charset=utf-8
+
+TABLE:
+Status | Interpretation
+200 | Success.
+400 | Bad Request
+500 | Internal Server
+Error
+
+TABLE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10 | { "errors" : [ { "severity" : "ERROR|WARNING" , "code" : "<code>" , "description" : "<description>" , "path" : "<path-to-failed-json-node>" } ] }
+
+TABLE:
+1
+2
+3
+4
+5
+6
+7
+8
+9 | { "errors" : [ { "severity" : "ERROR|WARNING" , "code" : "<code>" , "description" : "<description>" } ] }
+
+TABLE:
+Field | Type | Occurrence | 
+
+
+------------------------------------------------------------
+Result 7
+------------------------------------------------------------
+Final score: 26
+Lexical score: 0
+Semantic score: 26
+Semantic distance: 1.5859668254852295
+
+Title: Listing Management API Reference For HyperLocal Marketplace — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/listing-api-docs/HLMAPIRef.html
+
+Content:
+
+or description.
+attribute_errors | Array | Conditional | Indicates validation errors tied to a specified request
+attribute.
+attribute_errors[].severity | Enumeration | Mandatory | The severity of the error. Warnings may require no further
+action.
+attribute_errors[].code | Integer | Mandatory | The error code.
+attribute_errors[].description | String | Mandatory | The error description.
+attribute_errors[].path | String | Mandatory | The JSON path to the attribute.
+
+TABLE:
+Parameter | Type | Occurrence | Description
+sku-ids | String | Mandatory | Comma-separated list of SKU Ids. Maximum per call: 10.
+
+TABLE:
+Header | Meaning
+Content-Type | application/json; charset=utf-8
+
+TABLE:
+Status | Interpretation
+200 | Success.
+400 | Bad Request
+500 | Internal Server
+Error
+
+TABLE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10 | { "errors" : [ { "severity" : "ERROR|WARNING" , "code" : "<code>" , "description" : "<description>" , "path" : "<path-to-failed-json-node>" } ] }
+
+TABLE:
+1
+2
+3
+4
+5
+6
+7
+8
+9 | { "errors" : [ { "severit
+
+
+------------------------------------------------------------
+Result 8
+------------------------------------------------------------
+Final score: 25
+Lexical score: 0
+Semantic score: 25
+Semantic distance: 1.5886187553405762
+
+Title: Listing Management API Reference For Flipkart Marketplace — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/listing-api-docs/LMAPIRef.html
+
+Content:
+
+rter>"
+],
+"packer_details"
+:
+[
+"<address_of_packer>"
+],
+"countries_of_origin"
+:
+[
+"<iso_alpha2_code_of_country_of_origin>"
+]
+},
+"dating_label"
+:
+{
+"mfg_date"
+:
+"<Manufacturing date of the product in linux EPOCH (Seconds)>"
+,
+"shelf_life"
+:
+"<Shelf life of the product in Seconds>"
+},
+"archived_status"
+:
+"ARCHIVED|NONE"
+}
+}
+
+CODE:
+tax.tax_code
+
+CODE:
+status
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+
+CODE:
+{
+"sku"
+:
+{
+"status"
+:
+"success|failure|warning"
+,
+"errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+}
+],
+"attribute_errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+,
+"attribute"
+:
+"<attribute>"
+,
+"path"
+:
+"<path-to-attribute>"
+}
+]
+}
+}
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+CODE:
+{
+"errors"
+:
+[
+{
+"severity"
+:
+"ERROR|WARNING"
+,
+"code"
+:
+"<code>"
+,
+"description"
+:
+"<description>"
+,
+"path"
+:
+"<path-to-failed-json-node>"
+}
+]
+}
+
+CODE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+CODE:
+{
+"errors"
+:
+[
+{
+"severity"
+
+
+
+------------------------------------------------------------
+Result 9
+------------------------------------------------------------
+Final score: 24
+Lexical score: 0
+Semantic score: 24
+Semantic distance: 1.5946547985076904
+
+Title: Order Management Notification Service — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/order-api-docs/NotifIntro.html
+
+Content:
+
+pi.pilotseller.com/notify/fki POST Timestamp : 1432026135 Signature : SHA1 ( 1432026135 http : // seller . api . pilotseller . com / notify / fkiPOST669a57f4 - fe05 - 11 e4 - a322 - 1697 f925ec7b ) 83762 abd87b41e66ddd58320a4e803251e72b776 Authorization Information : Base64 ( 6113 ca4a - fe05 - 11 e4 - a322 - 1697 f925ec7b : 83762 abd87b41e66ddd58320a4e803251e72b776 ) NjExM2NhNGEtZmUwNS0xMWU0LWEzMjItMTY5N2Y5MjVlYzdiOjgzNzYyYWJkODdiNDFlNjZkZGQ1ODMyMGE0ZTgwMzI1MWU3MmI3NzY = Headers X_Date : Tue, 19 May 2015 09:02:15 GMT X_Authorization : FKLOGIN NjExM2NhNGEtZmUwNS0xMWU0LWEzMjItMTY5N2Y5MjVlYzdiOjgzNzYyYWJkODdiNDFlNjZkZGQ1ODMyMGE0ZTgwMzI1MWU3MmI3NzY =
+
+
+------------------------------------------------------------
+Result 10
+------------------------------------------------------------
+Final score: 23
+Lexical score: 0
+Semantic score: 23
+Semantic distance: 1.6166075468063354
+
+Title: Listing Management API Reference For Flipkart Marketplace — Developer API v3.0 documentation
+
+URL: https://seller.flipkart.com/api-docs/listing-api-docs/LMAPIRef.html
+
+Content:
+
+oduct until September 21, 11:59 PM, and 5% from
+September 22, 00:00 hours.
+
+TABLE:
+Header | Meaning
+Content-Type | application/json; charset=utf-8
+
+TABLE:
+Status | Interpretation
+200 | Success. Individual
+SKUs may have
+failed. The status field
+has to be tested to
+determine the actual
+result.
+400 | Bad Request
+500 | Internal Server
+Error
+
+TABLE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21 | { "sku" : { "status" : "success|failure|warning" , "errors" : [ { "severity" : "ERROR|WARNING" , "code" : "<code>" , "description" : "<description>" } ], "attribute_errors" : [ { "severity" : "ERROR|WARNING" , "code" : "<code>" , "description" : "<description>" , "attribute" : "<attribute>" , "path" : "<path-to-attribute>" } ] } }
+
+TABLE:
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10 | { "errors" : [ { "severity" : "ERROR|WARNING" , "code" : "<code>" , "description" : "<description>" , "path" : "<path-to-failed-json-node>" } ] }
+
+TABLE:
+1
+2
+3
+4
+5
+6
+7
+8
+9 | { "errors" : [ { "severity" : "ERROR|WARNING" , "code" : "<
+

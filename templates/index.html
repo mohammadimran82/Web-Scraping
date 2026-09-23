@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Flipkart Documentation AI</title>
+
+
+    <style>
+
+        body {
+
+            margin: 0;
+
+            font-family:
+                Arial,
+                sans-serif;
+
+            background: #f5f5f5;
+        }
+
+
+        .header {
+
+            background: #2874f0;
+
+            color: white;
+
+            padding: 20px;
+
+            text-align: center;
+        }
+
+
+        .header h1 {
+
+            margin: 0;
+        }
+
+
+        .chat-container {
+
+            width: 80%;
+
+            max-width: 900px;
+
+            margin: 30px auto;
+
+            background: white;
+
+            border-radius: 10px;
+
+            padding: 20px;
+
+            min-height: 500px;
+
+            box-shadow:
+                0 2px 10px
+                rgba(0, 0, 0, 0.1);
+        }
+
+
+        #chat-box {
+
+            height: 400px;
+
+            overflow-y: auto;
+
+            padding: 10px;
+
+            border: 1px solid #ddd;
+
+            border-radius: 8px;
+
+            margin-bottom: 20px;
+        }
+
+
+        .message {
+
+            margin: 15px 0;
+
+            padding: 12px;
+
+            border-radius: 8px;
+
+            line-height: 1.5;
+        }
+
+
+        .user {
+
+            background: #e3f2fd;
+
+            text-align: right;
+        }
+
+
+        .ai {
+
+            background: #f1f1f1;
+        }
+
+
+        .sources {
+
+            margin-top: 10px;
+
+            padding: 10px;
+
+            background: #ffffff;
+
+            border-left: 4px solid #2874f0;
+
+            font-size: 13px;
+        }
+
+
+        .source-item {
+
+            margin-bottom: 8px;
+        }
+
+
+        .source-item a {
+
+            color: #2874f0;
+
+            text-decoration: none;
+        }
+
+
+        .source-item a:hover {
+
+            text-decoration: underline;
+        }
+
+
+        .input-area {
+
+            display: flex;
+
+            gap: 10px;
+        }
+
+
+        #question {
+
+            flex: 1;
+
+            padding: 14px;
+
+            border: 1px solid #ccc;
+
+            border-radius: 6px;
+
+            font-size: 16px;
+        }
+
+
+        button {
+
+            padding: 14px 25px;
+
+            border: none;
+
+            border-radius: 6px;
+
+            background: #2874f0;
+
+            color: white;
+
+            font-size: 16px;
+
+            cursor: pointer;
+        }
+
+
+        button:hover {
+
+            background: #1259c3;
+        }
+
+
+        button:disabled {
+
+            background: #999;
+
+            cursor: not-allowed;
+        }
+
+
+        .loading {
+
+            font-style: italic;
+
+            color: #666;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <div class="header">
+
+        <h1>
+            Flipkart Documentation AI
+        </h1>
+
+        <p>
+            Ask questions about Flipkart Seller APIs
+        </p>
+
+    </div>
+
+
+
+    <div class="chat-container">
+
+
+        <div id="chat-box">
+
+            <div class="message ai">
+
+                Hello! Ask me a question about
+                the Flipkart documentation.
+
+            </div>
+
+        </div>
+
+
+
+        <div class="input-area">
+
+            <input
+                type="text"
+                id="question"
+                placeholder="Ask a question..."
+            >
+
+            <button
+                id="send-button"
+                onclick="askQuestion()"
+            >
+                Send
+            </button>
+
+        </div>
+
+
+    </div>
+
+
+
+    <script>
+
+
+        async function askQuestion() {
+
+
+            const input =
+                document.getElementById(
+                    "question"
+                );
+
+
+            const chatBox =
+                document.getElementById(
+                    "chat-box"
+                );
+
+
+            const button =
+                document.getElementById(
+                    "send-button"
+                );
+
+
+            const question =
+                input.value.trim();
+
+
+            if (!question) {
+
+                return;
+
+            }
+
+
+            // =================================================
+            // SHOW USER QUESTION
+            // =================================================
+
+            const userMessage =
+                document.createElement(
+                    "div"
+                );
+
+
+            userMessage.className =
+                "message user";
+
+
+            userMessage.textContent =
+                question;
+
+
+            chatBox.appendChild(
+                userMessage
+            );
+
+
+            // Clear input
+
+            input.value = "";
+
+
+            // Disable button
+
+            button.disabled = true;
+
+            button.textContent =
+                "Thinking...";
+
+
+            // =================================================
+            // SHOW LOADING MESSAGE
+            // =================================================
+
+            const loadingMessage =
+                document.createElement(
+                    "div"
+                );
+
+
+            loadingMessage.className =
+                "message ai loading";
+
+
+            loadingMessage.textContent =
+                "Searching documentation and generating answer...";
+
+
+            chatBox.appendChild(
+                loadingMessage
+            );
+
+
+            chatBox.scrollTop =
+                chatBox.scrollHeight;
+
+
+            try {
+
+
+                // =============================================
+                // SEND QUESTION TO FLASK
+                // =============================================
+
+                const response =
+                    await fetch(
+                        "/ask",
+                        {
+
+                            method: "POST",
+
+                            headers: {
+
+                                "Content-Type":
+                                    "application/json"
+
+                            },
+
+                            body: JSON.stringify({
+
+                                question:
+                                    question
+
+                            })
+
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                // Remove loading message
+
+                loadingMessage.remove();
+
+
+                // =============================================
+                // SHOW AI ANSWER
+                // =============================================
+
+                const aiMessage =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                aiMessage.className =
+                    "message ai";
+
+
+                aiMessage.textContent =
+                    data.answer;
+
+
+                chatBox.appendChild(
+                    aiMessage
+                );
+
+
+                // =============================================
+                // SHOW SOURCES
+                // =============================================
+
+                if (
+                    data.sources &&
+                    data.sources.length > 0
+                ) {
+
+
+                    const sourcesBox =
+                        document.createElement(
+                            "div"
+                        );
+
+
+                    sourcesBox.className =
+                        "sources";
+
+
+                    const sourcesTitle =
+                        document.createElement(
+                            "strong"
+                        );
+
+
+                    sourcesTitle.textContent =
+                        "Sources:";
+
+
+                    sourcesBox.appendChild(
+                        sourcesTitle
+                    );
+
+
+                    data.sources.forEach(
+                        function(source) {
+
+
+                            const sourceItem =
+                                document.createElement(
+                                    "div"
+                                );
+
+
+                            sourceItem.className =
+                                "source-item";
+
+
+                            const link =
+                                document.createElement(
+                                    "a"
+                                );
+
+
+                            link.href =
+                                source.url;
+
+
+                            link.target =
+                                "_blank";
+
+
+                            link.textContent =
+                                source.title;
+
+
+                            sourceItem.appendChild(
+                                link
+                            );
+
+
+                            sourcesBox.appendChild(
+                                sourceItem
+                            );
+
+                        }
+                    );
+
+
+                    chatBox.appendChild(
+                        sourcesBox
+                    );
+
+                }
+
+
+            }
+
+
+            catch (error) {
+
+
+                loadingMessage.remove();
+
+
+                const errorMessage =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                errorMessage.className =
+                    "message ai";
+
+
+                errorMessage.textContent =
+                    "Error: Could not connect to the RAG system.";
+
+
+                chatBox.appendChild(
+                    errorMessage
+                );
+
+
+                console.error(
+                    error
+                );
+
+            }
+
+
+            // Enable button
+
+            button.disabled = false;
+
+            button.textContent =
+                "Send";
+
+
+            // Scroll to bottom
+
+            chatBox.scrollTop =
+                chatBox.scrollHeight;
+
+        }
+
+
+
+        // =====================================================
+        // ENTER KEY
+        // =====================================================
+
+        document
+            .getElementById("question")
+            .addEventListener(
+                "keydown",
+                function(event) {
+
+
+                    if (
+                        event.key === "Enter"
+                    ) {
+
+                        askQuestion();
+
+                    }
+
+                }
+            );
+
+
+    </script>
+
+
+</body>
+
+</html>

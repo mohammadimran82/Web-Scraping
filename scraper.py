@@ -79,13 +79,9 @@ def convert_flipkart_url(url, start_domain):
 
         /FMSAPI.html
 
-    should actually become:
+    becomes:
 
         /api-docs/FMSAPI.html
-
-    This function fixes those links.
-
-    This is currently Flipkart-specific.
     """
 
     parsed = urlparse(url)
@@ -153,45 +149,33 @@ def should_crawl(url, start_domain):
     Decide whether a URL is allowed to be crawled.
     """
 
-    parsed = urlparse(url)
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
 
-    # --------------------------------------------------------
     # Only HTTP / HTTPS
-    # --------------------------------------------------------
-
     if parsed.scheme not in ["http", "https"]:
         return False
 
-    # --------------------------------------------------------
     # Same domain only
-    # --------------------------------------------------------
-
     if parsed.netloc.lower() != start_domain.lower():
         return False
 
     path = parsed.path.lower()
 
-    # --------------------------------------------------------
     # Only documentation pages
-    # --------------------------------------------------------
-
     if not (
         path == "/api-docs"
         or path.startswith("/api-docs/")
     ):
         return False
 
-    # --------------------------------------------------------
     # Ignore Sphinx source files
-    # --------------------------------------------------------
-
     if path.startswith("/api-docs/_sources/"):
         return False
 
-    # --------------------------------------------------------
     # Ignore files/assets
-    # --------------------------------------------------------
-
     blocked_extensions = [
         ".pdf",
         ".png",
@@ -235,6 +219,10 @@ def scrape_page(url):
     print(url)
     print("-" * 70)
 
+    # --------------------------------------------------------
+    # DOWNLOAD PAGE
+    # --------------------------------------------------------
+
     try:
 
         response = requests.get(
@@ -243,9 +231,11 @@ def scrape_page(url):
             timeout=30
         )
 
-        print("Status code:", response.status_code)
+        print(
+            "Status code:",
+            response.status_code
+        )
 
-        # Raise an error for 4xx / 5xx
         response.raise_for_status()
 
     except requests.RequestException as error:
@@ -256,7 +246,7 @@ def scrape_page(url):
         return None
 
     # --------------------------------------------------------
-    # Parse HTML
+    # PARSE HTML
     # --------------------------------------------------------
 
     soup = BeautifulSoup(
@@ -265,19 +255,22 @@ def scrape_page(url):
     )
 
     # --------------------------------------------------------
-    # Page title
+    # PAGE TITLE
     # --------------------------------------------------------
 
     if soup.title:
+
         title = soup.title.get_text(
             " ",
             strip=True
         )
+
     else:
+
         title = url
 
     # --------------------------------------------------------
-    # Find main documentation content
+    # FIND MAIN DOCUMENTATION CONTENT
     # --------------------------------------------------------
 
     main_content = (
@@ -289,12 +282,14 @@ def scrape_page(url):
 
     if main_content is None:
 
-        print("No main content found.")
+        print(
+            "No main content found."
+        )
 
         return None
 
     # --------------------------------------------------------
-    # Remove unwanted elements
+    # REMOVE UNWANTED HTML
     # --------------------------------------------------------
 
     for element in main_content.find_all(
@@ -310,7 +305,7 @@ def scrape_page(url):
         element.decompose()
 
     # --------------------------------------------------------
-    # Extract useful content
+    # EXTRACT CONTENT
     # --------------------------------------------------------
 
     content_parts = []
@@ -345,7 +340,9 @@ def scrape_page(url):
     # PARAGRAPHS
     # ========================================================
 
-    for paragraph in main_content.find_all("p"):
+    for paragraph in main_content.find_all(
+        "p"
+    ):
 
         text = paragraph.get_text(
             " ",
@@ -354,10 +351,12 @@ def scrape_page(url):
 
         if text:
 
-            content_parts.append(text)
+            content_parts.append(
+                text
+            )
 
     # ========================================================
-    # CODE
+    # CODE BLOCKS
     # ========================================================
 
     for code in main_content.find_all(
@@ -382,7 +381,9 @@ def scrape_page(url):
     # LIST ITEMS
     # ========================================================
 
-    for item in main_content.find_all("li"):
+    for item in main_content.find_all(
+        "li"
+    ):
 
         text = item.get_text(
             " ",
@@ -399,11 +400,15 @@ def scrape_page(url):
     # TABLES
     # ========================================================
 
-    for table in main_content.find_all("table"):
+    for table in main_content.find_all(
+        "table"
+    ):
 
         rows = []
 
-        for row in table.find_all("tr"):
+        for row in table.find_all(
+            "tr"
+        ):
 
             cells = row.find_all(
                 [
@@ -421,7 +426,9 @@ def scrape_page(url):
                     strip=True
                 )
 
-                row_data.append(cell_text)
+                row_data.append(
+                    cell_text
+                )
 
             if row_data:
 
@@ -438,12 +445,17 @@ def scrape_page(url):
             )
 
     # ========================================================
-    # FINAL TEXT
+    # COMBINE CONTENT
     # ========================================================
 
-    content = "\n".join(content_parts)
+    content = "\n".join(
+        content_parts
+    )
 
-    # Clean excessive blank lines
+    # --------------------------------------------------------
+    # CLEAN EXCESSIVE BLANK LINES
+    # --------------------------------------------------------
+
     lines = content.splitlines()
 
     cleaned_lines = []
@@ -464,7 +476,9 @@ def scrape_page(url):
 
         else:
 
-            cleaned_lines.append(line)
+            cleaned_lines.append(
+                line
+            )
 
             previous_blank = False
 
@@ -472,17 +486,95 @@ def scrape_page(url):
         cleaned_lines
     ).strip()
 
-    # --------------------------------------------------------
-    # Extract links
-    # --------------------------------------------------------
+    # ========================================================
+    # EXTRACT LINKS
+    # ========================================================
 
     links = []
 
-    
+    for anchor in main_content.find_all(
+        "a",
+        href=True
+    ):
 
-    # --------------------------------------------------------
-    # Remove duplicate links
-    # --------------------------------------------------------
+        href = anchor.get(
+            "href"
+        )
+
+        if not href:
+            continue
+
+        href = href.strip()
+
+        # ----------------------------------------------------
+        # Ignore placeholder links
+        # ----------------------------------------------------
+
+        if "your-website" in href.lower():
+            continue
+
+        # ----------------------------------------------------
+        # Ignore JavaScript links
+        # ----------------------------------------------------
+
+        if href.lower().startswith(
+            "javascript:"
+        ):
+            continue
+
+        # ----------------------------------------------------
+        # Ignore email links
+        # ----------------------------------------------------
+
+        if href.lower().startswith(
+            "mailto:"
+        ):
+            continue
+
+        # ----------------------------------------------------
+        # Ignore telephone links
+        # ----------------------------------------------------
+
+        if href.lower().startswith(
+            "tel:"
+        ):
+            continue
+
+        # ----------------------------------------------------
+        # Convert relative URL to absolute URL
+        # ----------------------------------------------------
+
+        try:
+
+            absolute_url = urljoin(
+                url,
+                href
+            )
+
+            absolute_url = normalize_url(
+                absolute_url
+            )
+
+        except ValueError:
+
+            print(
+                "Skipping invalid link:",
+                href
+            )
+
+            continue
+
+        # ----------------------------------------------------
+        # Store link
+        # ----------------------------------------------------
+
+        links.append(
+            absolute_url
+        )
+
+    # ========================================================
+    # REMOVE DUPLICATE LINKS
+    # ========================================================
 
     unique_links = []
 
@@ -492,9 +584,17 @@ def scrape_page(url):
 
         if link not in seen_links:
 
-            seen_links.add(link)
+            seen_links.add(
+                link
+            )
 
-            unique_links.append(link)
+            unique_links.append(
+                link
+            )
+
+    # ========================================================
+    # PRINT PAGE INFORMATION
+    # ========================================================
 
     print(
         "Content length:",
@@ -505,6 +605,10 @@ def scrape_page(url):
         "Links found:",
         len(unique_links)
     )
+
+    # ========================================================
+    # RETURN PAGE
+    # ========================================================
 
     return {
         "title": title,
@@ -519,6 +623,10 @@ def scrape_page(url):
 # ============================================================
 
 def crawl_website(start_url):
+
+    # --------------------------------------------------------
+    # Normalize starting URL
+    # --------------------------------------------------------
 
     start_url = normalize_url(
         start_url
@@ -555,6 +663,7 @@ def crawl_website(start_url):
         )
 
         print()
+
         print(
             "Example:"
         )
@@ -567,9 +676,9 @@ def crawl_website(start_url):
 
         return
 
-    # --------------------------------------------------------
-    # Queue
-    # --------------------------------------------------------
+    # ========================================================
+    # CREATE QUEUE
+    # ========================================================
 
     queue = deque()
 
@@ -577,17 +686,21 @@ def crawl_website(start_url):
         start_url
     )
 
-    # --------------------------------------------------------
-    # Keep track of visited URLs
-    # --------------------------------------------------------
+    # ========================================================
+    # VISITED URLS
+    # ========================================================
 
     visited = set()
 
-    # --------------------------------------------------------
-    # Store scraped pages
-    # --------------------------------------------------------
+    # ========================================================
+    # SCRAPED PAGES
+    # ========================================================
 
     pages = []
+
+    # ========================================================
+    # START CRAWLER
+    # ========================================================
 
     print()
     print("=" * 70)
@@ -595,27 +708,45 @@ def crawl_website(start_url):
     print("=" * 70)
 
     print()
-    print("Starting URL:")
-    print(start_url)
+
+    print(
+        "Starting URL:"
+    )
+
+    print(
+        start_url
+    )
 
     print()
-    print("Domain:")
-    print(start_domain)
+
+    print(
+        "Domain:"
+    )
+
+    print(
+        start_domain
+    )
 
     print()
-    print("Documentation path:")
-    print("/api-docs")
+
+    print(
+        "Documentation path:"
+    )
+
+    print(
+        "/api-docs"
+    )
 
     print()
 
     # ========================================================
-    # BFS CRAWLER
+    # BREADTH-FIRST SEARCH CRAWLER
     # ========================================================
 
     while queue:
 
         # ----------------------------------------------------
-        # Stop if maximum pages reached
+        # Check page limit
         # ----------------------------------------------------
 
         if (
@@ -641,6 +772,7 @@ def crawl_website(start_url):
         # ----------------------------------------------------
 
         if current_url in visited:
+
             continue
 
         visited.add(
@@ -648,7 +780,7 @@ def crawl_website(start_url):
         )
 
         # ----------------------------------------------------
-        # Convert Flipkart documentation links
+        # Convert Flipkart URL
         # ----------------------------------------------------
 
         current_url = convert_flipkart_url(
@@ -661,7 +793,7 @@ def crawl_website(start_url):
         )
 
         # ----------------------------------------------------
-        # Check whether URL is allowed
+        # Check whether URL can be crawled
         # ----------------------------------------------------
 
         if not should_crawl(
@@ -688,7 +820,7 @@ def crawl_website(start_url):
             continue
 
         # ----------------------------------------------------
-        # Make sure final URL is still valid
+        # Validate final URL
         # ----------------------------------------------------
 
         final_url = normalize_url(
@@ -709,7 +841,9 @@ def crawl_website(start_url):
                 "Skipping final URL:"
             )
 
-            print(final_url)
+            print(
+                final_url
+            )
 
             continue
 
@@ -722,14 +856,15 @@ def crawl_website(start_url):
         )
 
         print()
+
         print(
             "Pages scraped:",
             len(pages)
         )
 
-        # ----------------------------------------------------
-        # Add links to queue
-        # ----------------------------------------------------
+        # ====================================================
+        # ADD DISCOVERED LINKS TO QUEUE
+        # ====================================================
 
         for link in page["links"]:
 
@@ -756,7 +891,7 @@ def crawl_website(start_url):
                         )
 
         # ----------------------------------------------------
-        # Delay between requests
+        # Delay before next request
         # ----------------------------------------------------
 
         time.sleep(
@@ -764,7 +899,7 @@ def crawl_website(start_url):
         )
 
     # ========================================================
-    # SAVE DATA
+    # SAVE SCRAPED DATA
     # ========================================================
 
     print()
@@ -798,7 +933,7 @@ def crawl_website(start_url):
         )
 
     # ========================================================
-    # COMPLETION MESSAGE
+    # COMPLETION
     # ========================================================
 
     print()
@@ -807,6 +942,7 @@ def crawl_website(start_url):
     print("=" * 70)
 
     print()
+
     print(
         "Starting URL:",
         start_url
@@ -823,6 +959,7 @@ def crawl_website(start_url):
     )
 
     print()
+
     print(
         "Output file:"
     )
@@ -832,13 +969,14 @@ def crawl_website(start_url):
     )
 
     print()
+
     print(
         "Crawler finished successfully."
     )
 
 
 # ============================================================
-# MAIN
+# MAIN PROGRAM
 # ============================================================
 
 if __name__ == "__main__":
@@ -846,7 +984,7 @@ if __name__ == "__main__":
     import sys
 
     # --------------------------------------------------------
-    # If URL is passed from another Python script
+    # URL supplied by run_pipeline.py
     #
     # Example:
     #
@@ -858,7 +996,7 @@ if __name__ == "__main__":
         start_url = sys.argv[1].strip()
 
     # --------------------------------------------------------
-    # Otherwise ask the user
+    # Direct execution
     #
     # Example:
     #
@@ -872,12 +1010,13 @@ if __name__ == "__main__":
         ).strip()
 
     # --------------------------------------------------------
-    # Validate empty URL
+    # Check empty URL
     # --------------------------------------------------------
 
     if not start_url:
 
         print()
+
         print(
             "ERROR: Website URL cannot be empty."
         )
@@ -885,10 +1024,11 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # --------------------------------------------------------
-    # Show starting information
+    # Display URL information
     # --------------------------------------------------------
 
     print()
+
     print(
         f"Starting URL: {start_url}"
     )
